@@ -229,6 +229,7 @@
         <button type="button" class="btn-secondary" onclick="document.getElementById('file-input').click()">Import CSV / JSON</button>
         <input type="file" id="file-input" class="file-input" accept=".csv,.json,.xlsx,.xls" onchange="handleFileImport(event)">
         <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+        <button type="button" class="btn-secondary" onclick="removeDuplicates()">Remove duplicates</button>
       </div>
       <p class="import-hint">Import: Select <strong>initial_data.json</strong> (your exported data) or save Excel as CSV first.</p>
 
@@ -269,6 +270,8 @@
               <input type="text" id="share-link" readonly style="flex:1; background:var(--bg);">
               <button type="button" class="btn-secondary" id="btn-copy-link" onclick="copyShareLink(this)">Copy</button>
             </div>
+            <button type="button" class="btn-secondary" style="margin-top:0.75rem;" onclick="syncToFirebase(); this.textContent='Syncing...'; setTimeout(()=>this.textContent='Sync now', 2000);">Sync now</button>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.5rem;">Click "Sync now" to push your data to the cloud. Do this after importing, or if the other person sees empty.</p>
           </div>
         </div>
       </div>
@@ -418,6 +421,24 @@
       savePayments();
     }
 
+    function removeDuplicates() {
+      const seen = new Set();
+      const before = payments.length;
+      payments = payments.filter(p => {
+        const key = (p.Date || '') + '|' + (p.amount || 0) + '|' + (p['transfer detail'] || '');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const removed = before - payments.length;
+      if (removed > 0) {
+        savePayments();
+        alert(`Removed ${removed} duplicate payment(s).`);
+      } else {
+        alert('No duplicates found.');
+      }
+    }
+
     function handleFileImport(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -433,7 +454,8 @@
               amount: parseFloat(p.amount) || 0,
               'transfer detail': p['transfer detail'] || p.transfer_detail || ''
             })).filter(p => p.Date && p.amount);
-            payments = [...payments, ...newPayments];
+            const replace = payments.length === 0 || confirm('Replace all existing data with imported file? (Cancel = add to existing)');
+            payments = replace ? newPayments : [...payments, ...newPayments];
             payments.sort((a, b) => new Date(a.Date) - new Date(b.Date));
             savePayments();
             alert(`Imported ${newPayments.length} payments from JSON.`);
@@ -464,7 +486,8 @@
           if (date && !isNaN(amount)) newPayments.push({ Date: date, amount, 'transfer detail': detail });
         }
       }
-      payments = [...payments, ...newPayments];
+      const replace = payments.length === 0 || confirm('Replace all existing data with imported file? (Cancel = add to existing)');
+      payments = replace ? newPayments : [...payments, ...newPayments];
       payments.sort((a, b) => new Date(a.Date) - new Date(b.Date));
       savePayments();
       alert(`Imported ${newPayments.length} payments.`);
@@ -565,20 +588,24 @@
       localStorage.setItem(ROOM_KEY, currentRoomId);
       syncToFirebase();
       if (syncUnsubscribe) syncUnsubscribe();
-      syncUnsubscribe = firebaseDb.ref('rooms/' + currentRoomId).on('value', onRemoteUpdate);
+      syncUnsubscribe = firebaseDb.ref('rooms/' + currentRoomId).on('value', onRemoteUpdate, err => {
+        updateSyncStatus('Error: ' + (err.message || 'Permission denied. Check Firebase rules.'));
+      });
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
-      updateSyncStatus('Shared tracker created. Share the link below.');
+      updateSyncStatus('Syncing...');
     }
 
     function joinRoom(roomId) {
       currentRoomId = roomId;
       localStorage.setItem(ROOM_KEY, roomId);
       if (syncUnsubscribe) syncUnsubscribe();
-      syncUnsubscribe = firebaseDb.ref('rooms/' + roomId).on('value', onRemoteUpdate);
+      syncUnsubscribe = firebaseDb.ref('rooms/' + roomId).on('value', onRemoteUpdate, err => {
+        updateSyncStatus('Error: ' + (err.message || 'Permission denied. Check Firebase rules.'));
+      });
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
-      updateSyncStatus('Synced. Changes appear in real time for everyone with this link.');
+      updateSyncStatus('Connecting...');
     }
 
     function onRemoteUpdate(snap) {
@@ -601,6 +628,11 @@
         payments: payments,
         budget: getBudget(),
         updatedAt: Date.now()
+      }).then(() => {
+        updateSyncStatus('Synced. Changes appear in real time for everyone with this link.');
+      }).catch(err => {
+        updateSyncStatus('Sync failed: ' + (err.message || err.code || 'Permission denied. Check Firebase rules.'));
+        console.error('Firebase sync error:', err);
       });
     }
 
