@@ -175,6 +175,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
+  <script>
+    // Fallback: ensure Firebase config loads even if firebase-config.js fails (e.g. wrong path)
+    if (typeof FIREBASE_CONFIG === 'undefined' || !FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey) {
+      window.FIREBASE_CONFIG = {"apiKey":"AIzaSyCFZzfvczTZtfXPuqZrtTHOAvymVD_6M4o","authDomain":"asia-south1-7e8b5.firebaseapp.com","databaseURL":"https://asia-south1-7e8b5-default-rtdb.asia-south1.firebasedatabase.app","projectId":"asia-south1-7e8b5","storageBucket":"asia-south1-7e8b5.firebasestorage.app","messagingSenderId":"918788305355","appId":"1:918788305355:web:6f06a40853458803b0464e"};
+    }
+  </script>
 </head>
 <body>
   <div class="container">
