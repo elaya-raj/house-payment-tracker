@@ -165,6 +165,12 @@
     .sync-status { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.75rem; }
     .sync-status.synced::before { content: "● "; color: #22c55e; }
     .sync-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .firebase-setup { margin-top: 1rem; padding: 1rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; }
+    .firebase-setup h4 { margin-bottom: 0.5rem; font-size: 0.95rem; }
+    .firebase-setup textarea { width: 100%; min-height: 120px; font-family: monospace; font-size: 0.8rem; padding: 0.5rem; border-radius: 6px; margin: 0.5rem 0; }
+    .firebase-setup .steps { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem; line-height: 1.5; }
+    .firebase-setup .steps a { color: var(--accent); }
+    .firebase-setup .steps code { font-size: 0.75rem; background: #fff; padding: 0.1rem 0.3rem; border-radius: 3px; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -226,21 +232,43 @@
       </div>
       <p class="import-hint">Import: Select <strong>initial_data.json</strong> (your exported data) or save Excel as CSV first.</p>
 
-      <div id="sync-section" class="sync-section" style="display:none;">
+      <div id="sync-section" class="sync-section">
         <hr style="margin:1.5rem 0; border:none; border-top:1px solid var(--border);">
         <h3 style="font-size:1rem; margin-bottom:0.75rem;">Real-time sharing</h3>
-        <div id="sync-status" class="sync-status"></div>
-        <div class="sync-actions">
-          <button type="button" class="btn-primary" id="btn-create-room">Create shared tracker</button>
-          <span style="color:var(--text-muted);">or</span>
-          <input type="text" id="room-id-input" placeholder="Paste room ID to join" style="max-width:200px;">
-          <button type="button" class="btn-secondary" id="btn-join-room">Join</button>
+        <div id="firebase-setup-box" class="firebase-setup" style="display:none;">
+          <h4>One-time setup (2 minutes)</h4>
+          <div class="steps">
+            1. <a href="https://console.firebase.google.com" target="_blank">Firebase Console</a> → Create project → Realtime Database → Create (choose asia-south1)<br>
+            2. Project Settings (gear) → Your apps → Add Web app → Copy the <code>firebaseConfig</code> object<br>
+            3. Realtime Database → Rules → set to: <code>{"rules":{"rooms":{"$roomId":{".read":true,".write":true}}}}</code> → Publish<br>
+            4. Paste config below and click Save
+          </div>
+          <textarea id="firebase-config-input" placeholder='Paste your Firebase config here, e.g.:
+{
+  "apiKey": "AIza...",
+  "authDomain": "your-project.firebaseapp.com",
+  "databaseURL": "https://your-project-default-rtdb.firebaseio.com",
+  "projectId": "your-project",
+  "storageBucket": "your-project.appspot.com",
+  "messagingSenderId": "123...",
+  "appId": "1:123..."
+}'></textarea>
+          <button type="button" class="btn-primary" onclick="saveFirebaseConfig()">Save Firebase config</button>
         </div>
-        <div id="share-link-box" style="display:none; margin-top:1rem;">
-          <label>Share this link – both of you will see updates in real time:</label>
-          <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-            <input type="text" id="share-link" readonly style="flex:1; background:var(--bg);">
-            <button type="button" class="btn-secondary" id="btn-copy-link" onclick="copyShareLink(this)">Copy</button>
+        <div id="sync-active" style="display:none;">
+          <div id="sync-status" class="sync-status"></div>
+          <div class="sync-actions">
+            <button type="button" class="btn-primary" id="btn-create-room">Create shared tracker</button>
+            <span style="color:var(--text-muted);">or</span>
+            <input type="text" id="room-id-input" placeholder="Paste room ID to join" style="max-width:200px;">
+            <button type="button" class="btn-secondary" id="btn-join-room">Join</button>
+          </div>
+          <div id="share-link-box" style="display:none; margin-top:1rem;">
+            <label>Share this link – both of you will see updates in real time:</label>
+            <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+              <input type="text" id="share-link" readonly style="flex:1; background:var(--bg);">
+              <button type="button" class="btn-secondary" id="btn-copy-link" onclick="copyShareLink(this)">Copy</button>
+            </div>
           </div>
         </div>
       </div>
@@ -274,6 +302,7 @@
     const STORAGE_KEY = 'house-payments';
     const BUDGET_KEY = 'house-budget';
     const ROOM_KEY = 'house-room';
+    const FIREBASE_CONFIG_KEY = 'firebase-config';
     let payments = [];
     let firebaseDb = null;
     let currentRoomId = null;
@@ -467,15 +496,51 @@
       a.click();
     }
 
-    function initSync() {
-      const cfg = typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey;
-      const syncSection = document.getElementById('sync-section');
-      if (!cfg) { syncSection.style.display = 'none'; return; }
-      syncSection.style.display = 'block';
+    function getFirebaseConfig() {
+      const fromStorage = localStorage.getItem(FIREBASE_CONFIG_KEY);
+      if (fromStorage) {
+        try { return JSON.parse(fromStorage); } catch (e) {}
+      }
+      if (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey) {
+        return FIREBASE_CONFIG;
+      }
+      return null;
+    }
+
+    function saveFirebaseConfig() {
+      const raw = document.getElementById('firebase-config-input').value.trim();
+      if (!raw) { alert('Paste your Firebase config first.'); return; }
       try {
-        firebase.initializeApp(FIREBASE_CONFIG);
+        let cfg = JSON.parse(raw);
+        if (cfg.firebaseConfig) cfg = cfg.firebaseConfig;
+        if (!cfg.apiKey || !cfg.databaseURL) throw new Error('Invalid config');
+        localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(cfg));
+        alert('Firebase connected! Now create a shared tracker and share the link.');
+        initSync();
+      } catch (e) {
+        alert('Invalid config. Paste the full config object from Firebase.');
+      }
+    }
+
+    function initSync() {
+      const cfg = getFirebaseConfig();
+      const setupBox = document.getElementById('firebase-setup-box');
+      const syncActive = document.getElementById('sync-active');
+      if (!cfg || !cfg.apiKey) {
+        setupBox.style.display = 'block';
+        syncActive.style.display = 'none';
+        return;
+      }
+      setupBox.style.display = 'none';
+      syncActive.style.display = 'block';
+      try {
+        if (firebase.apps.length === 0) firebase.initializeApp(cfg);
         firebaseDb = firebase.database();
-      } catch (e) { syncSection.style.display = 'none'; return; }
+      } catch (e) {
+        setupBox.style.display = 'block';
+        syncActive.style.display = 'none';
+        return;
+      }
       const params = new URLSearchParams(location.search);
       const roomFromUrl = params.get('room');
       if (roomFromUrl) {
