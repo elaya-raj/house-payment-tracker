@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Payment Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf8f5;
+      --card: #ffffff;
+      --accent: #2d5a3d;
+      --accent-light: #4a7c59;
+      --text: #2c2c2c;
+      --text-muted: #6b6b6b;
+      --border: #e8e4df;
+      --danger: #c44d4d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr auto;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 700px) {
+      .form-row { grid-template-columns: 1fr 1fr; }
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.15);
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger {
+      background: #fee;
+      color: var(--danger);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+    }
+    .btn-danger:hover { background: #fdd; }
+    .actions { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr:hover { background: rgba(45, 90, 61, 0.03); }
+    .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .total-row {
+      font-weight: 700;
+      font-size: 1.1rem;
+      background: rgba(45, 90, 61, 0.08);
+    }
+    .total-row td { border-bottom: none; padding-top: 1rem; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+    .file-input { display: none; }
+    .import-hint { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
+    .summary-card {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-item {
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .summary-item label { font-size: 0.7rem; margin-bottom: 0.25rem; }
+    .summary-item .value { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .summary-item.remaining .value { color: var(--accent); }
+    .summary-item.remaining .value.over { color: var(--danger); }
+    .progress-bar {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .progress-fill.over { background: var(--danger); }
+    .budget-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .budget-row input { max-width: 180px; }
+    .sync-section { margin-top: 0.5rem; }
+    .sync-status { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.75rem; }
+    .sync-status.synced::before { content: "● "; color: #22c55e; }
+    .sync-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>House Payment Tracker</h1>
+
+    <div class="card">
+      <div class="budget-row">
+        <label style="margin:0;">Total budget (₹)</label>
+        <input type="number" id="total-budget" placeholder="1,60,00,000" value="16000000" min="0" step="1000">
+        <button type="button" class="btn-secondary" onclick="saveBudget()">Save</button>
+      </div>
+      <div class="summary-card" id="summary-card">
+        <div class="summary-item">
+          <label>Total budget</label>
+          <div class="value" id="summary-budget">₹ 0</div>
+        </div>
+        <div class="summary-item">
+          <label>Paid so far</label>
+          <div class="value" id="summary-paid">₹ 0</div>
+        </div>
+        <div class="summary-item remaining">
+          <label>Remaining</label>
+          <div class="value" id="summary-remaining">₹ 0</div>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <form id="payment-form">
+        <div class="form-row">
+          <div>
+            <label>Date</label>
+            <input type="date" id="date" required>
+          </div>
+          <div>
+            <label>Amount (₹)</label>
+            <input type="number" id="amount" placeholder="0" min="0" step="0.01" required>
+          </div>
+          <div>
+            <label>Transfer Detail</label>
+            <input type="text" id="detail" placeholder="e.g. cash by Arthi, RTGS transfer..." required>
+          </div>
+          <div>
+            <button type="submit" class="btn-primary">Add</button>
+          </div>
+        </div>
+      </form>
+      <div class="actions">
+        <button type="button" class="btn-secondary" onclick="document.getElementById('file-input').click()">Import CSV / JSON</button>
+        <input type="file" id="file-input" class="file-input" accept=".csv,.json,.xlsx,.xls" onchange="handleFileImport(event)">
+        <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+      </div>
+      <p class="import-hint">Import: Select <strong>initial_data.json</strong> (your exported data) or save Excel as CSV first.</p>
+
+      <div id="sync-section" class="sync-section" style="display:none;">
+        <hr style="margin:1.5rem 0; border:none; border-top:1px solid var(--border);">
+        <h3 style="font-size:1rem; margin-bottom:0.75rem;">Real-time sharing</h3>
+        <div id="sync-status" class="sync-status"></div>
+        <div class="sync-actions">
+          <button type="button" class="btn-primary" id="btn-create-room">Create shared tracker</button>
+          <span style="color:var(--text-muted);">or</span>
+          <input type="text" id="room-id-input" placeholder="Paste room ID to join" style="max-width:200px;">
+          <button type="button" class="btn-secondary" id="btn-join-room">Join</button>
+        </div>
+        <div id="share-link-box" style="display:none; margin-top:1rem;">
+          <label>Share this link – both of you will see updates in real time:</label>
+          <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+            <input type="text" id="share-link" readonly style="flex:1; background:var(--bg);">
+            <button type="button" class="btn-secondary" id="btn-copy-link" onclick="copyShareLink(this)">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Amount (₹)</th>
+            <th>Transfer Detail</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="payments-body"></tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="2"><strong>Total</strong></td>
+            <td id="total-amount" colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+      <div id="empty-state" class="empty-state" style="display:none;">
+        No payments yet. Add one above or import from your Excel.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'house-payments';
+    const BUDGET_KEY = 'house-budget';
+    const ROOM_KEY = 'house-room';
+    let payments = [];
+    let firebaseDb = null;
+    let currentRoomId = null;
+    let syncUnsubscribe = null;
+
+    function getBudget() {
+      const saved = localStorage.getItem(BUDGET_KEY);
+      return saved ? parseFloat(saved) : 16000000;
+    }
+
+    function saveBudget() {
+      const val = parseFloat(document.getElementById('total-budget').value) || 0;
+      localStorage.setItem(BUDGET_KEY, val);
+      document.getElementById('total-budget').value = val;
+      render();
+      if (firebaseDb && currentRoomId) syncToFirebase();
+    }
+
+    function loadPayments() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      payments = saved ? JSON.parse(saved) : [];
+      document.getElementById('total-budget').value = getBudget();
+      render();
+      initSync();
+    }
+
+    function savePayments(skipSync) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+      render();
+      if (!skipSync && firebaseDb && currentRoomId) syncToFirebase();
+    }
+
+    function render() {
+      const tbody = document.getElementById('payments-body');
+      const empty = document.getElementById('empty-state');
+      const totalEl = document.getElementById('total-amount');
+
+      if (payments.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        totalEl.textContent = '₹ 0';
+        const budget = getBudget();
+        document.getElementById('summary-budget').textContent = `₹ ${formatNumber(budget)}`;
+        document.getElementById('summary-paid').textContent = '₹ 0';
+        document.getElementById('summary-remaining').textContent = `₹ ${formatNumber(budget)}`;
+        document.getElementById('progress-fill').style.width = '0%';
+        document.getElementById('progress-fill').classList.remove('over');
+        return;
+      }
+      empty.style.display = 'none';
+
+      let total = 0;
+      tbody.innerHTML = payments.map((p, i) => {
+        const amt = parseFloat(p.amount) || 0;
+        total += amt;
+        return `
+          <tr>
+            <td>${formatDate(p.Date)}</td>
+            <td class="amount">₹ ${formatNumber(amt)}</td>
+            <td>${escapeHtml(p['transfer detail'] || '')}</td>
+            <td><button type="button" class="btn-danger" onclick="removePayment(${i})">Remove</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      totalEl.textContent = `₹ ${formatNumber(total)}`;
+
+      // Update summary
+      const budget = getBudget();
+      const remaining = Math.max(0, budget - total);
+      const remainingEl = document.getElementById('summary-remaining');
+      remainingEl.textContent = `₹ ${formatNumber(remaining)}`;
+      remainingEl.classList.toggle('over', total > budget);
+      document.getElementById('summary-budget').textContent = `₹ ${formatNumber(budget)}`;
+      document.getElementById('summary-paid').textContent = `₹ ${formatNumber(total)}`;
+      const pct = budget > 0 ? Math.min(100, (total / budget) * 100) : 0;
+      const progress = document.getElementById('progress-fill');
+      progress.style.width = pct + '%';
+      progress.classList.toggle('over', total > budget);
+    }
+
+    function formatDate(d) {
+      if (!d) return '';
+      const date = new Date(d);
+      return isNaN(date) ? d : date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function formatNumber(n) {
+      return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    document.getElementById('payment-form').onsubmit = (e) => {
+      e.preventDefault();
+      payments.push({
+        Date: document.getElementById('date').value,
+        amount: parseFloat(document.getElementById('amount').value) || 0,
+        'transfer detail': document.getElementById('detail').value.trim()
+      });
+      payments.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+      document.getElementById('payment-form').reset();
+      document.getElementById('date').valueAsDate = new Date();
+      savePayments();
+    };
+
+    function removePayment(i) {
+      payments.splice(i, 1);
+      savePayments();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target.result;
+        if (file.name.endsWith('.json')) {
+          try {
+            const data = JSON.parse(text);
+            const arr = Array.isArray(data) ? data : [data];
+            const newPayments = arr.map(p => ({
+              Date: p.Date || p.date,
+              amount: parseFloat(p.amount) || 0,
+              'transfer detail': p['transfer detail'] || p.transfer_detail || ''
+            })).filter(p => p.Date && p.amount);
+            payments = [...payments, ...newPayments];
+            payments.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+            savePayments();
+            alert(`Imported ${newPayments.length} payments from JSON.`);
+          } catch (err) {
+            alert('Invalid JSON file.');
+          }
+        } else if (file.name.endsWith('.csv')) {
+          parseCSV(text);
+        } else {
+          alert('Please use a .csv or .json file. Save Excel as CSV (File → Save As → CSV UTF-8).');
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) return;
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const newPayments = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = parseCSVLine(lines[i]);
+        if (vals.length >= 3) {
+          const date = vals[headers.indexOf('Date')] || vals[0];
+          const amount = parseFloat(vals[headers.indexOf('amount')] || vals[1]) || 0;
+          const detail = vals[headers.indexOf('transfer detail')] || vals[2] || '';
+          if (date && !isNaN(amount)) newPayments.push({ Date: date, amount, 'transfer detail': detail });
+        }
+      }
+      payments = [...payments, ...newPayments];
+      payments.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+      savePayments();
+      alert(`Imported ${newPayments.length} payments.`);
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') inQuotes = !inQuotes;
+        else if ((c === ',' && !inQuotes) || c === '\r') {
+          result.push(current.trim());
+          current = '';
+        } else current += c;
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function exportCSV() {
+      const headers = ['Date', 'amount', 'transfer detail'];
+      const rows = payments.map(p => [p.Date, p.amount, `"${(p['transfer detail'] || '').replace(/"/g, '""')}"`]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      a.download = 'house-payments-' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+    }
+
+    function initSync() {
+      const cfg = typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey;
+      const syncSection = document.getElementById('sync-section');
+      if (!cfg) { syncSection.style.display = 'none'; return; }
+      syncSection.style.display = 'block';
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        firebaseDb = firebase.database();
+      } catch (e) { syncSection.style.display = 'none'; return; }
+      const params = new URLSearchParams(location.search);
+      const roomFromUrl = params.get('room');
+      if (roomFromUrl) {
+        joinRoom(roomFromUrl);
+      } else {
+        currentRoomId = localStorage.getItem(ROOM_KEY);
+        if (currentRoomId) {
+          joinRoom(currentRoomId);
+        } else {
+          updateSyncStatus('Working locally. Create or join a shared tracker to sync.');
+        }
+      }
+      document.getElementById('btn-create-room').onclick = createRoom;
+      document.getElementById('btn-join-room').onclick = () => {
+        const id = document.getElementById('room-id-input').value.trim();
+        if (id) joinRoom(id);
+      };
+    }
+
+    function createRoom() {
+      currentRoomId = 'room_' + Math.random().toString(36).slice(2, 12);
+      localStorage.setItem(ROOM_KEY, currentRoomId);
+      syncToFirebase();
+      if (syncUnsubscribe) syncUnsubscribe();
+      syncUnsubscribe = firebaseDb.ref('rooms/' + currentRoomId).on('value', onRemoteUpdate);
+      updateShareLink();
+      document.getElementById('share-link-box').style.display = 'block';
+      updateSyncStatus('Shared tracker created. Share the link below.');
+    }
+
+    function joinRoom(roomId) {
+      currentRoomId = roomId;
+      localStorage.setItem(ROOM_KEY, roomId);
+      if (syncUnsubscribe) syncUnsubscribe();
+      syncUnsubscribe = firebaseDb.ref('rooms/' + roomId).on('value', onRemoteUpdate);
+      updateShareLink();
+      document.getElementById('share-link-box').style.display = 'block';
+      updateSyncStatus('Synced. Changes appear in real time for everyone with this link.');
+    }
+
+    function onRemoteUpdate(snap) {
+      const data = snap.val();
+      if (!data) return;
+      if (data.payments && Array.isArray(data.payments)) {
+        payments = data.payments;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+      }
+      if (data.budget != null) {
+        localStorage.setItem(BUDGET_KEY, String(data.budget));
+        document.getElementById('total-budget').value = data.budget;
+      }
+      render();
+    }
+
+    function syncToFirebase() {
+      if (!firebaseDb || !currentRoomId) return;
+      firebaseDb.ref('rooms/' + currentRoomId).set({
+        payments: payments,
+        budget: getBudget(),
+        updatedAt: Date.now()
+      });
+    }
+
+    function updateShareLink() {
+      let url;
+      if (location.protocol === 'file:') {
+        url = '(Host the app online to get a shareable link – see SETUP-SHARING.md)';
+      } else {
+        url = location.origin + location.pathname + '?room=' + currentRoomId;
+      }
+      document.getElementById('share-link').value = url;
+    }
+
+    function copyShareLink(btn) {
+      const input = document.getElementById('share-link');
+      const url = input.value;
+      if (url.startsWith('http')) {
+        input.select();
+        if (navigator.clipboard) navigator.clipboard.writeText(url);
+        else document.execCommand('copy');
+        input.blur();
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+      }
+    }
+
+    function updateSyncStatus(msg) {
+      const el = document.getElementById('sync-status');
+      el.textContent = msg;
+      el.classList.toggle('synced', !!currentRoomId);
+    }
+
+    // Set default date to today
+    document.getElementById('date').valueAsDate = new Date();
+    document.getElementById('total-budget').onchange = saveBudget;
+    document.getElementById('total-budget').onblur = saveBudget;
+    loadPayments();
+  </script>
+</body>
+</html>
