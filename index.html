@@ -311,6 +311,7 @@
     const STORAGE_KEY = 'house-payments';
     const BUDGET_KEY = 'house-budget';
     const ROOM_KEY = 'house-room';
+    const ROOM_ADMIN_KEY = 'house-room-admin';
     const FIREBASE_CONFIG_KEY = 'firebase-config';
     let payments = [];
     let firebaseDb = null;
@@ -363,16 +364,18 @@
       }
       empty.style.display = 'none';
 
+      const isAdmin = !currentRoomId || localStorage.getItem(ROOM_ADMIN_KEY) === currentRoomId;
       let total = 0;
       tbody.innerHTML = payments.map((p, i) => {
         const amt = parseFloat(p.amount) || 0;
         total += amt;
+        const removeBtn = isAdmin ? `<button type="button" class="btn-danger" onclick="removePayment(${i})">Remove</button>` : '';
         return `
           <tr>
             <td>${formatDate(p.Date)}</td>
             <td class="amount">₹ ${formatNumber(amt)}</td>
             <td>${escapeHtml(p['transfer detail'] || '')}</td>
-            <td><button type="button" class="btn-danger" onclick="removePayment(${i})">Remove</button></td>
+            <td>${removeBtn}</td>
           </tr>
         `;
       }).join('');
@@ -592,6 +595,7 @@
     function createRoom() {
       currentRoomId = 'room_' + Math.random().toString(36).slice(2, 12);
       localStorage.setItem(ROOM_KEY, currentRoomId);
+      localStorage.setItem(ROOM_ADMIN_KEY, currentRoomId);
       syncToFirebase();
       if (syncUnsubscribe) syncUnsubscribe();
       syncUnsubscribe = firebaseDb.ref('rooms/' + currentRoomId).on('value', onRemoteUpdate, err => {
