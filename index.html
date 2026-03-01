@@ -69,6 +69,10 @@
       border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.15);
     }
+    input[readonly] {
+      background: var(--bg);
+      cursor: default;
+    }
     button {
       padding: 0.6rem 1.2rem;
       border: none;
@@ -190,7 +194,7 @@
       <div class="budget-row">
         <label style="margin:0;">Total budget (₹)</label>
         <input type="number" id="total-budget" placeholder="1,60,00,000" value="16000000" min="0" step="1000">
-        <button type="button" class="btn-secondary" onclick="saveBudget()">Save</button>
+        <button type="button" class="btn-secondary" id="btn-save-budget" onclick="saveBudget()">Save</button>
       </div>
       <div class="summary-card" id="summary-card">
         <div class="summary-item">
@@ -332,12 +336,22 @@
       if (firebaseDb && currentRoomId) syncToFirebase();
     }
 
+    function updateBudgetEditability() {
+      const input = document.getElementById('total-budget');
+      const btn = document.getElementById('btn-save-budget');
+      if (!input || !btn) return;
+      const isAdmin = !currentRoomId || localStorage.getItem(ROOM_ADMIN_KEY) === currentRoomId;
+      input.readOnly = !isAdmin;
+      btn.style.display = isAdmin ? '' : 'none';
+    }
+
     function loadPayments() {
       const saved = localStorage.getItem(STORAGE_KEY);
       payments = saved ? JSON.parse(saved) : [];
       document.getElementById('total-budget').value = getBudget();
       render();
       initSync();
+      updateBudgetEditability();
     }
 
     function savePayments(skipSync) {
@@ -591,6 +605,7 @@
         const id = document.getElementById('room-id-input').value.trim();
         if (id) joinRoom(id);
       };
+      updateBudgetEditability();
     }
 
     function createRoom() {
@@ -605,6 +620,7 @@
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
       updateClaimAdminVisibility();
+      updateBudgetEditability();
       updateSyncStatus('Syncing...');
     }
 
@@ -618,6 +634,7 @@
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
       updateClaimAdminVisibility();
+      updateBudgetEditability();
       updateSyncStatus('Connecting...');
     }
 
@@ -625,6 +642,7 @@
       if (currentRoomId) {
         localStorage.setItem(ROOM_ADMIN_KEY, currentRoomId);
         updateClaimAdminVisibility();
+        updateBudgetEditability();
         render();
       }
     }
