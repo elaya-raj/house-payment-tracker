@@ -224,7 +224,7 @@
           </div>
           <div>
             <label>Transfer Detail</label>
-            <input type="text" id="detail" placeholder="e.g. cash by Elai, RTGS transfer..." required>
+            <input type="text" id="detail" placeholder="e.g. cash by elai, RTGS transfer..." required>
           </div>
           <div>
             <button type="submit" class="btn-primary">Add</button>
@@ -278,6 +278,7 @@
             </div>
             <button type="button" class="btn-secondary" style="margin-top:0.75rem;" onclick="syncToFirebase(); this.textContent='Syncing...'; setTimeout(()=>this.textContent='Sync now', 2000);">Sync now</button>
             <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.5rem;">Click "Sync now" to push your data to the cloud. Do this after importing, or if the other person sees empty.</p>
+            <p id="claim-admin-box" style="font-size:0.85rem; margin-top:0.5rem; display:none;">You're viewing a shared tracker. <button type="button" class="btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.8rem;" onclick="claimAdmin()">I created this tracker</button> (enables Remove button)</p>
           </div>
         </div>
       </div>
@@ -603,6 +604,7 @@
       });
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
+      updateClaimAdminVisibility();
       updateSyncStatus('Syncing...');
     }
 
@@ -615,7 +617,24 @@
       });
       updateShareLink();
       document.getElementById('share-link-box').style.display = 'block';
+      updateClaimAdminVisibility();
       updateSyncStatus('Connecting...');
+    }
+
+    function claimAdmin() {
+      if (currentRoomId) {
+        localStorage.setItem(ROOM_ADMIN_KEY, currentRoomId);
+        updateClaimAdminVisibility();
+        render();
+      }
+    }
+
+    function updateClaimAdminVisibility() {
+      const box = document.getElementById('claim-admin-box');
+      if (!box) return;
+      const inRoom = !!currentRoomId;
+      const isAdmin = !currentRoomId || localStorage.getItem(ROOM_ADMIN_KEY) === currentRoomId;
+      box.style.display = inRoom && !isAdmin ? 'block' : 'none';
     }
 
     function onRemoteUpdate(snap) {
